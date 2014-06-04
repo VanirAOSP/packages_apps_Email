@@ -5311,8 +5311,6 @@ public class EmailProvider extends ContentProvider {
         extras.putString(EmailServiceStatus.SYNC_EXTRAS_CALLBACK_METHOD,
                 SYNC_STATUS_CALLBACK_METHOD);
         ContentResolver.requestSync(account, EmailContent.AUTHORITY, extras);
-        LogUtils.i(TAG, "requestSync EmailProvider startSync %s, %s", account.toString(),
-                extras.toString());
     }
 
     /**
@@ -5686,8 +5684,6 @@ public class EmailProvider extends ContentProvider {
                         final android.accounts.Account account = request.mAccount;
                         final Bundle extras = Mailbox.createSyncBundle(request.mMailboxId);
                         ContentResolver.requestSync(account, request.mAuthority, extras);
-                        LogUtils.i(TAG, "requestSync getDelayedSyncHandler %s, %s",
-                                account.toString(), extras.toString());
                         mDelayedSyncRequests.remove(request);
                         return true;
                     }

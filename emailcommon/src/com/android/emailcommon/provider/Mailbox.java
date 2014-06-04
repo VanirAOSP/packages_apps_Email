@@ -996,8 +996,6 @@ public class Mailbox extends EmailContent implements MailboxColumns, Parcelable 
             final Bundle extras = createSyncBundle(mailboxId);
             extras.putBoolean(ContentResolver.SYNC_EXTRAS_IGNORE_SETTINGS, true);
             ContentResolver.requestSync(account, AUTHORITY, extras);
-            LogUtils.i(Logging.LOG_TAG, "requestSync resyncMailbox %s, %s",
-                    account.toString(), extras.toString());
         } catch (RemoteException e) {
             LogUtils.w(Logging.LOG_TAG, e, "Failed to wipe mailbox %d", mailboxId);
         } catch (OperationApplicationException e) {
