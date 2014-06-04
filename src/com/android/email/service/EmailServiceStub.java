@@ -118,9 +118,6 @@ public abstract class EmailServiceStub extends IEmailService.Stub implements IEm
                 account.toString(), extras.toString());
     }
 
-    @Override
-    public void loadAttachment(final IEmailServiceCallback cb, final long accountId,
-            final long attachmentId, final boolean background) throws RemoteException {
     /**
      * Delete a single message by moving it to the trash, or really delete it if it's already in
      * trash or a draft message.
@@ -170,11 +167,6 @@ public abstract class EmailServiceStub extends IEmailService.Stub implements IEm
             ContentValues cv = new ContentValues();
             cv.put(EmailContent.MessageColumns.MAILBOX_KEY, trashFolder.mId);
              mContext.getContentResolver().update(uri, cv, null, null);
-        }
-        try {
-            startSync(mailbox.mId,true,0);
-        } catch (RemoteException e){
-            LogUtils.d(Logging.LOG_TAG,"RemoteException " +e);
         }
     }
 /**
@@ -227,6 +219,10 @@ public abstract class EmailServiceStub extends IEmailService.Stub implements IEm
     public void setMessageRead(long messageId, boolean isRead) {
         setMessageBoolean(messageId, EmailContent.MessageColumns.FLAG_READ, isRead);
     }
+
+    @Override
+    public void loadAttachment(final IEmailServiceCallback cb, final long accountId,
+            final long attachmentId, final boolean background) throws RemoteException {
         Folder remoteFolder = null;
         try {
             //1. Check if the attachment is already here and return early in that case
