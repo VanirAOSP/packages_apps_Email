@@ -34,9 +34,11 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.RemoteException;
 import android.provider.BaseColumns;
+import android.text.TextUtils;
 
 import com.android.emailcommon.Logging;
 import com.android.emailcommon.R;
+import com.android.emailcommon.service.SearchParams;
 import com.android.emailcommon.utility.TextUtilities;
 import com.android.emailcommon.utility.Utility;
 import com.android.mail.providers.UIProvider;
@@ -520,8 +522,8 @@ public abstract class EmailContent {
 
             // Assign values for each row.
             values.put(BodyColumns.MESSAGE_KEY, mMessageKey);
-            values.put(BodyColumns.HTML_CONTENT, mHtmlContent);
-            values.put(BodyColumns.TEXT_CONTENT, mTextContent);
+            values.put(BodyColumns.HTML_CONTENT, Utility.compress(mHtmlContent));
+            values.put(BodyColumns.TEXT_CONTENT, Utility.compress(mTextContent));
             values.put(BodyColumns.SOURCE_MESSAGE_KEY, mSourceKey);
             return values;
         }
@@ -834,8 +836,9 @@ public abstract class EmailContent {
          */
         public static final String FLAG_LOADED_SELECTION =
             MessageColumns.FLAG_LOADED + " IN ("
-            +     Message.FLAG_LOADED_PARTIAL + "," + Message.FLAG_LOADED_COMPLETE
-            +     ")";
+            +     Message.FLAG_LOADED_PARTIAL + "," + Message.FLAG_LOADED_COMPLETE + ","
+            +     Message.FLAG_LOADED_PARTIAL_COMPLETE + ","
+            +     Message.FLAG_LOADED_PARTIAL_FETCHING +")";
 
         public static final String ALL_FAVORITE_SELECTION =
             MessageColumns.FLAG_FAVORITE + "=1 AND "
@@ -946,8 +949,10 @@ public abstract class EmailContent {
         public static final int FLAG_LOADED_UNLOADED = 0;
         public static final int FLAG_LOADED_COMPLETE = 1;
         public static final int FLAG_LOADED_PARTIAL = 2;
-        public static final int FLAG_LOADED_DELETED = 3;
-        public static final int FLAG_LOADED_UNKNOWN = 4;
+        public static final int FLAG_LOADED_PARTIAL_COMPLETE = 3;
+        public static final int FLAG_LOADED_PARTIAL_FETCHING = 4;
+        public static final int FLAG_LOADED_DELETED = 5;
+        public static final int FLAG_LOADED_UNKNOWN = 6;
 
         // Bits used in mFlags
         // The following three states are mutually exclusive, and indicate whether the message is an
@@ -1170,10 +1175,10 @@ public abstract class EmailContent {
             // Create and save the body
             ContentValues cv = new ContentValues();
             if (mText != null) {
-                cv.put(BodyColumns.TEXT_CONTENT, mText);
+                cv.put(BodyColumns.TEXT_CONTENT, Utility.compress(mText));
             }
             if (mHtml != null) {
-                cv.put(BodyColumns.HTML_CONTENT, mHtml);
+                cv.put(BodyColumns.HTML_CONTENT, Utility.compress(mHtml));
             }
             if (mSourceKey != 0) {
                 cv.put(BodyColumns.SOURCE_MESSAGE_KEY, mSourceKey);
@@ -1295,6 +1300,65 @@ public abstract class EmailContent {
                         : Message.FLAG_TYPE_FORWARD;
             }
         }
+
+
+        public static String buildLocalSearchSelection(Context context, long mailboxId,
+                String queryFilter, String queryFactor) {
+            StringBuilder selection = new StringBuilder();
+            selection.append(" (");
+            queryFilter = queryFilter.replaceAll("\\\\", "\\\\\\\\")
+                    .replaceAll("%", "\\\\%")
+                    .replaceAll("_", "\\\\_")
+                    .replaceAll("'", "''");
+            String[] queryFilters = queryFilter.split(" +");
+
+            boolean isAll = false;
+            if (queryFactor.contains(SearchParams.SEARCH_FACTOR_ALL)) {
+                isAll = true;
+            }
+            if (queryFactor.contains(SearchParams.SEARCH_FACTOR_SUBJECT) || isAll) {
+                selection.append(buildSelectionClause(queryFilters, MessageColumns.SUBJECT));
+            }
+            if (queryFactor.contains(SearchParams.SEARCH_FACTOR_SENDER) || isAll) {
+                selection.append(buildSelectionClause(queryFilters, MessageColumns.FROM_LIST));
+            }
+            if (queryFactor.contains(SearchParams.SEARCH_FACTOR_RECEIVER) || isAll) {
+                selection.append(buildSelectionClause(queryFilters, null));
+            }
+
+            selection.delete(selection.length() - " or ".length(), selection.length());
+            selection.append(")");
+            return selection.toString();
+        }
+
+        private static String buildSelectionClause(String[] queryFilters, String queryFactor) {
+            StringBuilder clause = new StringBuilder();
+            clause.append('(');
+            // if text is null that factor is receiver,otherwish the factor is subject or sender
+            if (TextUtils.isEmpty(queryFactor)) {
+                for (int i = 0; i < queryFilters.length; i++) {
+                    clause.append('(');
+                    clause.append("lower(").append(MessageColumns.TO_LIST).append(") like \'%")
+                            .append(queryFilters[i].toLowerCase()).append("%\' escape \'\\'")
+                            .append(" or ").append("lower(")
+                            .append(MessageColumns.CC_LIST).append(") like \'%")
+                            .append(queryFilters[i].toLowerCase())
+                            .append("%\' escape \'\\') and ");
+                }
+            } else {
+                for (int i = 0; i < queryFilters.length; i++) {
+                    clause.append("lower(").append(queryFactor).append(") like \'%")
+                            .append(queryFilters[i].toLowerCase()).append("%\' escape \'\\'")
+                            .append(" and ");
+                }
+            }
+
+            clause.delete(clause.length() - " and ".length(), clause.length());
+            clause.append(')');
+            clause.append(" or ");
+            return clause.toString();
+        }
+
     }
 
     public interface AttachmentColumns extends BaseColumns {
@@ -1728,6 +1792,10 @@ public abstract class EmailContent {
         public static final String MAX_ATTACHMENT_SIZE = "maxAttachmentSize";
         // Current duration of the Exchange ping
         public static final String PING_DURATION = "pingDuration";
+        // If the user could set the sync size for this account.
+        public static final String SET_SYNC_SIZE_ENABLED = "setSyncSizeEnabled";
+        // The sync size for each message of this account.
+        public static final String SYNC_SIZE = "syncSize";
         // Automatically fetch pop3 attachments
         public static final String AUTO_FETCH_ATTACHMENTS = "autoFetchAttachments";
         // Account capabilities (check EmailServiceProxy#CAPABILITY_*)

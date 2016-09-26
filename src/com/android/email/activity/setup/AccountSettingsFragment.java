@@ -53,6 +53,7 @@ import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.Window;
@@ -83,6 +84,7 @@ import com.android.mail.ui.settings.SettingsUtils;
 import com.android.mail.utils.ContentProviderTask.UpdateTask;
 import com.android.mail.utils.LogUtils;
 import com.android.mail.utils.NotificationUtils;
+import com.android.mail.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,6 +114,8 @@ public class AccountSettingsFragment extends MailAccountPrefsFragment
     private static final String PREFERENCE_SYNC_EMAIL = "account_sync_email";
     private static final String PREFERENCE_SYNC_CONTACTS = "account_sync_contacts";
     private static final String PREFERENCE_SYNC_CALENDAR = "account_sync_calendar";
+    private static final String PREFERENCE_SYNC_SIZE_ENABLE = "account_sync_size_enable";
+    private static final String PREFERENCE_SYNC_SIZE = "account_sync_size";
     private static final String PREFERENCE_BACKGROUND_ATTACHMENTS =
             "account_background_attachments";
     private static final String PREFERENCE_PER_FOLDER_NOTIFICATIONS =
@@ -147,6 +151,8 @@ public class AccountSettingsFragment extends MailAccountPrefsFragment
     private ListPreference mCheckFrequency;
     private ListPreference mSyncWindow;
     private Preference mSyncSettings;
+    private CheckBoxPreference mSyncSizeEnable;
+    private ListPreference mSyncSize;
     private CheckBoxPreference mInboxVibrate;
     private Preference mInboxRingtone;
     private FolderNotificationLightPreference mInboxLights;
@@ -416,6 +422,10 @@ public class AccountSettingsFragment extends MailAccountPrefsFragment
             ContentResolver.setSyncAutomatically(androidAcct, CalendarContract.AUTHORITY,
                     (Boolean) newValue);
             loadSettings();
+        } else if (key.equals(PREFERENCE_SYNC_SIZE_ENABLE)) {
+            final boolean enabled = (Boolean) newValue;
+            mSyncSize.setEnabled(enabled);
+            cv.put(AccountColumns.SET_SYNC_SIZE_ENABLED, enabled ? 1 : 0);
         } else if (key.equals(PREFERENCE_BACKGROUND_ATTACHMENTS)) {
             int newFlags = mAccount.getFlags() & ~(Account.FLAGS_BACKGROUND_ATTACHMENTS);
 
@@ -460,6 +470,13 @@ public class AccountSettingsFragment extends MailAccountPrefsFragment
         mDeleteAccountItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
         inflater.inflate(R.menu.settings_fragment_menu, menu);
+
+        MenuItem feedbackMenuItem = menu.findItem(R.id.feedback_menu_item);
+        Uri feedbackUri = Utils.getValidUri(getString(R.string.email_feedback_uri));
+
+        if (feedbackMenuItem != null) {
+            feedbackMenuItem.setVisible(!Uri.EMPTY.equals(feedbackUri));
+        }
     }
 
     @Override
@@ -852,6 +869,36 @@ public class AccountSettingsFragment extends MailAccountPrefsFragment
                         0 != (mAccount.getFlags() & Account.FLAGS_BACKGROUND_ATTACHMENTS));
                 backgroundAttachments.setOnPreferenceChangeListener(this);
             }
+        }
+
+        mSyncSizeEnable = (CheckBoxPreference) findPreference(PREFERENCE_SYNC_SIZE_ENABLE);
+        mSyncSize = (ListPreference) findPreference(PREFERENCE_SYNC_SIZE);
+        if (mSyncSizeEnable != null && mSyncSize != null) {
+            mSyncSizeEnable.setOnPreferenceChangeListener(this);
+            mSyncSize.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                public boolean onPreferenceChange(Preference preference, Object newValue) {
+                    final String summary = newValue.toString();
+                    int index = mSyncSize.findIndexOfValue(summary);
+                    mSyncSize.setSummary(mSyncSize.getEntries()[index]);
+                    mSyncSize.setValue(summary);
+
+                    // Commit the value
+                    ContentValues cv = new ContentValues();
+                    cv.put(AccountColumns.SYNC_SIZE, Integer.parseInt(summary));
+                    new UpdateTask().run(mContext.getContentResolver(), mAccount.getUri(), cv,
+                            null, null);
+                    EmailProvider.setServicesEnabledAsync(mContext);
+                    return false;
+                }
+            });
+
+            // Set sync size configurations
+            mSyncSizeEnable.setEnabled(true);
+            mSyncSizeEnable.setChecked(mAccount.isSetSyncSizeEnabled());
+
+            mSyncSize.setEnabled(mAccount.isSetSyncSizeEnabled());
+            mSyncSize.setValue(String.valueOf(mAccount.getSyncSize()));
+            mSyncSize.setSummary(mSyncSize.getEntry());
         }
 
         final PreferenceCategory notificationsCategory =

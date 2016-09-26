@@ -46,7 +46,7 @@
     <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
 
     <!-- This needs to be present when we are doing unbundled releases. -->
-    <uses-sdk android:targetSdkVersion="21" android:minSdkVersion="14" />
+    <uses-sdk android:targetSdkVersion="23" android:minSdkVersion="14" />
 
     <!-- additional uses -->
 
@@ -227,7 +227,7 @@
             android:label="@string/app_name"
             android:name="com.android.email2.ui.MailActivityEmail"
             android:theme="@style/MailActivityTheme"
-            android:windowSoftInputMode="stateAlwaysHidden">
+            android:windowSoftInputMode="stateAlwaysHidden|adjustPan">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -279,7 +279,7 @@
         <activity
             android:name=".activity.setup.EmailPreferenceActivity"
             android:label="@string/activity_preferences"
-            android:exported="false" >
+            android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.EDIT" />
                 <action android:name="android.intent.action.VIEW" />
@@ -323,6 +323,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:host="com.android.email.ACCOUNT_SETTINGS" />
+                <data android:host="com.android.email.ACCOUNT_SECURITY" />
                 <data android:scheme="auth"/>
             </intent-filter>
         </activity>
@@ -383,6 +384,11 @@
         <activity
             android:name="com.android.mail.ui.LicensesActivity"
             android:label="@string/open_source_licenses">
+        </activity>
+
+        <activity android:name="com.android.email.activity.RequestPermissionsActivity" >
+        </activity>
+        <activity android:name="com.android.email.activity.RequestPermissionsActivityBase" >
         </activity>
 
         <!-- additional activities -->
@@ -453,6 +459,32 @@
 
         <receiver
             android:name=".service.EmailBroadcastReceiver"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.DEVICE_STORAGE_LOW" />
+                <action android:name="android.intent.action.DEVICE_STORAGE_OK" />
+                <action android:name="android.intent.action.LOCALE_CHANGED"/>
+                <action android:name="android.accounts.LOGIN_ACCOUNTS_CHANGED" />
+            </intent-filter>
+            <!-- To handle new message notifications -->
+            <intent-filter>
+                <action android:name="com.android.mail.action.update_notification"
+                        android:priority="-10" />
+                <data android:mimeType="@string/application_mime_type" />
+            </intent-filter>
+            <!-- To handle secret code to activate the debug screen. -->
+            <intent-filter>
+                <action
+                    android:name="android.provider.Telephony.SECRET_CODE" />
+                <!-- "36245" = "email" -->
+                <data
+                    android:scheme="android_secret_code"
+                    android:host="36245" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".service.BluetoothEmailBroadcastReceiver"
             android:enabled="true"
             android:permission="com.android.email.permission.ACCESS_PROVIDER">
             <intent-filter>
@@ -596,6 +628,16 @@
             <intent-filter>
                 <action
                     android:name="com.android.email.IMAP_INTENT" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".service.BluetoothImapService"
+            android:enabled="true"
+            android:permission="com.android.email.permission.ACCESS_PROVIDER"
+            >
+            <intent-filter>
+                <action
+                    android:name="com.android.email.IMAP_INTENT" />
                 <action
                     android:name="org.codeaurora.email.intent.action.MAIL_SERVICE_DELETE_MESSAGE" />
                 <action
@@ -609,6 +651,16 @@
 
         <service
             android:name=".service.Pop3Service"
+            android:enabled="true"
+            android:permission="com.android.email.permission.ACCESS_PROVIDER"
+            >
+            <intent-filter>
+                <action
+                    android:name="com.android.email.POP3_INTENT" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".service.BluetoothPop3Service"
             android:enabled="true"
             android:permission="com.android.email.permission.ACCESS_PROVIDER"
             >
@@ -631,6 +683,154 @@
             <meta-data
                 android:name="android.accounts.AccountAuthenticator"
                 android:resource="@xml/authenticator_eas"
+                />
+        </service>
+
+        <service
+            android:name=".service.AliceAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_alice"
+                />
+        </service>
+
+        <service
+            android:name=".service.YahooAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_yahoo"
+                />
+        </service>
+
+        <service
+            android:name=".service.OutLookAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_outlook"
+                />
+        </service>
+
+        <service
+            android:name=".service.GmailAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_gmail"
+                />
+        </service>
+
+        <service
+            android:name=".service.SfrAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_sfr"
+                />
+        </service>
+
+        <service
+            android:name=".service.AolAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_aol"
+                />
+        </service>
+
+        <service
+            android:name=".service.LaposteAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_laposte"
+                />
+        </service>
+
+        <service
+            android:name=".service.NoosAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_noos"
+                />
+        </service>
+        <service
+            android:name=".service.OrangeAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_orange"
+                />
+        </service>
+        <service
+            android:name=".service.FreeAuthenticatorService"
+            android:exported="true"
+            android:enabled="true"
+            >
+            <intent-filter>
+                <action
+                    android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator_free"
                 />
         </service>
         <!--Required stanza to register the EasTestAuthenticatorService with AccountManager -->

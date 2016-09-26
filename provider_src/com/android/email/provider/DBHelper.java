@@ -60,6 +60,7 @@ import com.android.emailcommon.provider.QuickResponse;
 import com.android.emailcommon.provider.SuggestedContact;
 import com.android.emailcommon.service.EmailServiceProxy;
 import com.android.emailcommon.service.LegacyPolicySet;
+import com.android.emailcommon.service.SyncSize;
 import com.android.emailcommon.service.SyncWindow;
 import com.android.mail.providers.UIProvider;
 import com.android.mail.utils.LogUtils;
@@ -187,6 +188,7 @@ public final class DBHelper {
     // Version 126: Decode address lists for To, From, Cc, Bcc and Reply-To columns in Message.
     // Version 127: Force mFlags to contain the correct flags for EAS accounts given a protocol
     //              version above 12.0
+    // Version 128: Add setSyncSizeEnabled and syncSize columns for Account table.
     // Version 129: Update all IMAP INBOX mailboxes to force synchronization
     // Version 130: Account capabilities (check EmailServiceProxy#CAPABILITY_*)
     public static final int DATABASE_VERSION = 130;
@@ -527,6 +529,8 @@ public final class DBHelper {
             + AccountColumns.POLICY_KEY + " integer, "
             + AccountColumns.MAX_ATTACHMENT_SIZE + " integer, "
             + AccountColumns.PING_DURATION + " integer, "
+            + AccountColumns.SET_SYNC_SIZE_ENABLED + " integer, "
+            + AccountColumns.SYNC_SIZE + " integer, "
             + AccountColumns.AUTO_FETCH_ATTACHMENTS + " integer, "
             + AccountColumns.CAPABILITIES + " integer default 0"
             + ");";
@@ -1529,7 +1533,22 @@ public final class DBHelper {
             if (oldVersion <= 126 || fromCM11) {
                 upgradeFromVersion126ToVersion127(mContext, db);
             }
-            if (oldVersion <= 127 && !fromCM11) {
+
+            if (oldVersion <= 127) {
+                try {
+                    db.execSQL("alter table " + Account.TABLE_NAME
+                            + " add column " + AccountColumns.SET_SYNC_SIZE_ENABLED + " integer"
+                            + " default " + SyncSize.ENABLED_DEFAULT_VALUE + ";");
+                    db.execSQL("alter table " + Account.TABLE_NAME
+                            + " add column " + AccountColumns.SYNC_SIZE + " integer"
+                            + " default " + SyncSize.SYNC_SIZE_DEFAULT_VALUE + ";");
+                } catch (SQLException e) {
+                    // Shouldn't be needed unless we're debugging and interrupt the process
+                    LogUtils.w(TAG, "Exception upgrading EmailProvider.db from 127 to 128", e);
+                }
+            }
+
+            if (oldVersion <= 128 && !fromCM11) {
                 try {
                     db.execSQL("alter table " + Account.TABLE_NAME
                             + " add column " + AccountColumns.AUTO_FETCH_ATTACHMENTS
@@ -1539,7 +1558,7 @@ public final class DBHelper {
                     db.update(Account.TABLE_NAME, cv, null, null);
                 } catch (final SQLException e) {
                     // Shouldn't be needed unless we're debugging and interrupt the process
-                    LogUtils.w(TAG, "Exception upgrading EmailProvider.db from v127 to v128", e);
+                    LogUtils.w(TAG, "Exception upgrading EmailProvider.db from v128 to v129", e);
                 }
             }
 

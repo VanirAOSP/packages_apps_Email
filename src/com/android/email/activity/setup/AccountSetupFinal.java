@@ -43,6 +43,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
 import com.android.email.R;
+import com.android.email.activity.RequestPermissionsActivity;
 import com.android.email.setup.AuthenticatorSetupIntentHelper;
 import com.android.email.service.EmailServiceUtils;
 import com.android.emailcommon.VendorPolicyLoader;
@@ -182,6 +183,9 @@ public class AccountSetupFinal extends AccountSetupActivity
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        if (RequestPermissionsActivity.startPermissionActivity(this)) {
+            finish();
+        }
         super.onCreate(savedInstanceState);
 
         final Intent intent = getIntent();
@@ -930,6 +934,10 @@ public class AccountSetupFinal extends AccountSetupActivity
      */
     private void populateSetupData(String senderName, String senderEmail) {
         final Account account = mSetupData.getAccount();
+        String signature = getResources().getString(R.string.default_email_signature);
+        if (!TextUtils.isEmpty(signature)) {
+            account.setSignature(signature);
+        }
         account.setSenderName(senderName);
         account.setEmailAddress(senderEmail);
         account.setDisplayName(senderEmail);
@@ -1126,7 +1134,8 @@ public class AccountSetupFinal extends AccountSetupActivity
             newFlags |= Account.FLAGS_BACKGROUND_ATTACHMENTS;
         }
         final HostAuth hostAuth = account.getOrCreateHostAuthRecv(this);
-        if (hostAuth.mProtocol.equals(getString(R.string.protocol_eas))) {
+        if (hostAuth.mProtocol.equals(getString(R.string.protocol_eas))
+                && account.mProtocolVersion != null) {
             try {
                 final double protocolVersionDouble = Double.parseDouble(account.mProtocolVersion);
                 if (protocolVersionDouble >= 12.0) {
@@ -1143,6 +1152,8 @@ public class AccountSetupFinal extends AccountSetupActivity
         }
         account.setFlags(newFlags);
         account.setSyncInterval(fragment.getCheckFrequencyValue());
+        account.setSyncSizeEnabled(fragment.getSyncSizeEnabledValue());
+        account.setSyncSize(fragment.getSyncSizeValue());
         final Integer syncWindowValue = fragment.getAccountSyncWindowValue();
         if (syncWindowValue != null) {
             account.setSyncLookback(syncWindowValue);
